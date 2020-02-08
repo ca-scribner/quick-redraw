@@ -1,0 +1,2 @@
+# noinspection PyUnresolvedReferences
+import quick_redraw.data.metadata

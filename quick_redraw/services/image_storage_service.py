@@ -1,0 +1,1 @@
+# Code to put/get images from raw and normalized storage buckets
