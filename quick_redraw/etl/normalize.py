@@ -38,5 +38,10 @@ def normalize_drawing(drawing: np.array):
     Returns:
         (np.array)
     """
-    normalized_drawing_shape = (28, 28)
-    return cv2.resize(drawing, dsize=normalized_drawing_shape)
+    # Resize
+    normalized_drawing_size = (28, 28)
+    drawing = cv2.resize(drawing, dsize=normalized_drawing_size)
+
+    # Flatten
+    drawing = drawing.reshape(-1)
+    return drawing

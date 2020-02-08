@@ -79,4 +79,4 @@ def test_normalize_image_from_db_local(db_with_image, tmpdir, db_init):  # metad
     assert normalized_image_filename == os.path.join(tmpdir, f"{FAKE_LABEL}_{m_id}.npy")
 
     normalized_image = np.load(normalized_image_filename)
-    assert normalized_image.shape == (28, 28)
+    assert normalized_image.shape == (28**2,)
