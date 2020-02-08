@@ -26,7 +26,7 @@ def global_init(db_path: str, echo: bool = True):
     db_path = db_path.strip()
 
     if not db_path:
-        raise ValueError("You must specify a db path")
+        print(f"WARNING: Found empty db_path - db will be created in memory")
 
     # TODO: Handle GCP
     conn_str = "sqlite:///" + db_path

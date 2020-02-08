@@ -6,11 +6,12 @@ from quick_redraw.data.metadata_db_session import create_session, global_init, a
 from quick_redraw.services.metadata_service import add_record_to_metadata, find_record_by_id
 
 
-def store_image(label, drawing, metadata_id=None, raw_storage_location=None, normalized_storage_location=None):
+def store_image(label=None, drawing=None, metadata_id=None, raw_storage_location=None, normalized_storage_location=None):
     """
     TODO: this docstring
 
     Note: Assumes metadata_db is initialized already
+    Future: This feels too multi-purpose - is there a better way to refactor?
 
     Args:
         label:
@@ -28,20 +29,26 @@ def store_image(label, drawing, metadata_id=None, raw_storage_location=None, nor
     drawing = np.asarray(drawing, dtype=int)
 
     if not metadata_id:
-        # put record into metadata_db.  Get record for id
-        m = add_record_to_metadata(label)
+        if not label:
+            raise ValueError("Storing a new record requires a label")
+        # put record into metadata_db
+        m = add_record_to_metadata()
         print(f"Added metadata record {m}")
     else:
         # Get existing record
         m = find_record_by_id(metadata_id=metadata_id)
 
+    # Update the metadata record and recommit
+    if label:
+        m.label = label
+
     # Store img file in raw_storage_location as label_metadataId (so it is unique and easily understood)
     # TODO: Handle GCP
     if raw_storage_location:
-        filepath = os.path.join(raw_storage_location, f"{label}_{m.id}.npy")
+        filepath = os.path.join(raw_storage_location, f"{m.label}_{m.id}.npy")
         m.file_raw = filepath
     elif normalized_storage_location:
-        filepath = os.path.join(normalized_storage_location, f"{label}_{m.id}.npy")
+        filepath = os.path.join(normalized_storage_location, f"{m.label}_{m.id}.npy")
         m.file_normalized = filepath
     else:
         raise ValueError("No storage location specified -- how did I get here? Should have gotten caught by input "

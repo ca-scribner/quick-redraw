@@ -1,1 +1,2 @@
 sqlalchemy
+opencv-python

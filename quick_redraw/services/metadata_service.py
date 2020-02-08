@@ -6,7 +6,7 @@ from quick_redraw.data.metadata_db_session import create_session
 from quick_redraw.data.metadata import Metadata
 
 
-def add_record_to_metadata(label: str, raw_storage_location: str = None,
+def add_record_to_metadata(label: str = None, raw_storage_location: str = None,
                            normalized_storage_location: str = None) -> Metadata:
     m = Metadata()
     m.label = label
