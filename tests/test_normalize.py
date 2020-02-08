@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from quick_redraw.data.metadata import Metadata
 from quick_redraw.data.metadata_db_session import global_init, create_session
 from quick_redraw.data.modelbase import SqlAlchemyBase
-from quick_redraw.etl.normalize import normalize_image
+from quick_redraw.etl.normalize import normalize_drawing_from_db
 
 # Fixtures inspired by: https://gist.github.com/kissgyorgy/e2365f25a213de44b9a2
 # Above patterns didn't quite work with how session __factory is shared.  Curious how I could improve my pattern as it
@@ -52,9 +52,9 @@ def db_with_image(dummy_image):
     s.close()
 
 
-def test_normalize_image_local(db_with_image, tmpdir, db_init):  # metadata_id, normalized_storage_location
+def test_normalize_image_from_db_local(db_with_image, tmpdir, db_init):  # metadata_id, normalized_storage_location
     """
-    Tests that normalize_image successfully loads the image from metadata_db, normalizes, and returns it to new store
+    Tests that normalize_image_from_db_local loads the image from metadata_db, normalizes, and returns it to new store
 
     Output metadata and image are both inspected
 
@@ -68,7 +68,7 @@ def test_normalize_image_local(db_with_image, tmpdir, db_init):  # metadata_id, 
     assert all_records[0].file_normalized is None
 
     m_id = all_records[0].id
-    normalize_image(m_id, tmpdir)
+    normalize_drawing_from_db(m_id, tmpdir)
 
     s = create_session()
     all_records = s.query(Metadata).all()
