@@ -217,3 +217,4 @@ ipython_config.py
 
 # Local data
 *.ndjson
+/mock_data/untracked/
