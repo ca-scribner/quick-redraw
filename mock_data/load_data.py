@@ -7,7 +7,10 @@ from collections import deque
 import cairocffi as cairo
 
 from quick_redraw.data.metadata_db_session import global_init, create_session
-from quick_redraw.etl.store_raw import store_image
+from quick_redraw.etl.save_load_images import store_image
+
+
+# TODO: Add citations for code
 
 
 def main():
@@ -16,27 +19,33 @@ def main():
     metadata_location = args.metadata_location
     raw_storage_location = args.raw_storage_location
     label = args.label
+    max_drawings = args.max_drawings
 
     init_db(metadata_location=metadata_location)
 
-    drawings_as_raster = load_drawings(drawing_bin_file)
+    drawings_as_raster = load_drawings(drawing_bin_file, max_drawings=max_drawings)
 
     # Store images
     for drawing in drawings_as_raster:
-        store_image(label=label, drawing=drawing, metadata_location=metadata_location,
-                    raw_storage_location=raw_storage_location)
+        store_image(label=label,
+                    drawing=drawing,
+                    raw_storage_location=raw_storage_location
+                    )
 
 
 def init_db(metadata_location):
     global_init(metadata_location)
 
 
-def load_drawings(drawing_bin_file):
-    output_size = 28  # pixels square
+def load_drawings(drawing_bin_file, max_drawings=np.inf):
+    output_size = 256  # pixels square
     drawings_as_vector = deque()
 
-    for drawing_as_vector in unpack_drawings(drawing_bin_file):
-        drawings_as_vector.append(drawing_as_vector)
+    for i, drawing_as_vector in enumerate(unpack_drawings(drawing_bin_file)):
+        if i >= max_drawings:
+            print(f"Drawing limit reached ({max_drawings})")
+            break
+        drawings_as_vector.append(drawing_as_vector['image'])
 
     drawings_as_raster = vector_to_raster(drawings_as_vector, side=output_size)
     return drawings_as_raster
@@ -138,7 +147,7 @@ def parse_arguments():
                         help="Path to metadata database (local or gcp bucket)")
     parser.add_argument('raw_storage_location', type=str, action="store",
                         help="Location to store raw files (local or gcp bucket)")
-    parser.add_argument("--max_images", type=int, action="store", default=100)
+    parser.add_argument("--max_drawings", type=int, action="store", default=100)
     args = parser.parse_args()
     return args
 
