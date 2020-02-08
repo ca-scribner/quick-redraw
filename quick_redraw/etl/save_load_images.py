@@ -1,7 +1,10 @@
 import argparse
 import os
+from typing import List, Tuple
+
 import numpy as np
 
+from quick_redraw.data.metadata import Metadata
 from quick_redraw.data.metadata_db_session import create_session, global_init, add_commit_close
 from quick_redraw.services.metadata_service import add_record_to_metadata, find_record_by_id
 
@@ -67,6 +70,23 @@ def _xor(raw_storage_location, normalized_storage_location):
     print(
         f"bool(raw_storage_location) != bool(normalized_storage_location) = {bool(raw_storage_location) != bool(normalized_storage_location)}")
     return bool(raw_storage_location) != bool(normalized_storage_location)
+
+
+def load_drawings(label: str = None, storage_location: str = 'normalized') -> List[Tuple[str, np.array]]:
+    valid_storage_locations = ['normalized', 'raw']
+    if storage_location not in valid_storage_locations:
+        raise ValueError(f"Invalid storage location '{storage_location}, must be one of "
+                         f"'{', '.join(valid_storage_locations)}'")
+    else:
+        storage_location = "file_" + storage_location
+    s = create_session()
+    if label:
+        records = s.query(Metadata).filter(Metadata.label == label).all()
+    else:
+        records = s.query(Metadata).all()
+    s.close()
+    drawings = [(record.label, np.load(getattr(record, storage_location))) for record in records]
+    return drawings
 
 
 # # Queued for removal.  I think this is better living in load_data.  It is basically just code to enable testing,
