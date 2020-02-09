@@ -1,0 +1,7 @@
+-r requirements.txt
+
+# also needs python-dev and libffi-dev from your system’s package manager
+cairocffi
+numpy
+matplotlib
+pytest
