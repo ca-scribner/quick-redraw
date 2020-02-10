@@ -51,11 +51,12 @@ def create_session() -> sa.orm.Session:
     return __factory()
 
 
-def add_commit_close(x) -> None:
+def add_commit_close(x, expire_on_commit: bool=True) -> None:
     """
     Convenience function that a session, adds an object to it, commits it, and closes it
     """
     s = create_session()
+    s.expire_on_commit = expire_on_commit
     s.add(x)
     s.commit()
     s.close()

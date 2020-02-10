@@ -6,7 +6,8 @@ from collections import deque
 
 import cairocffi as cairo
 
-from quick_redraw.data.metadata_db_session import global_init, create_session
+from quick_redraw.data.metadata_db_session import global_init
+from quick_redraw.etl.normalize import normalize_drawing_from_db
 from quick_redraw.etl.save_load_images import store_image
 
 
@@ -20,6 +21,7 @@ def main():
     raw_storage_location = args.raw_storage_location
     label = args.label
     max_drawings = args.max_drawings
+    normalized_storage_location = args.normalized_storage_location
 
     init_db(metadata_location=metadata_location)
 
@@ -27,10 +29,14 @@ def main():
 
     # Store images
     for drawing in drawings_as_raster:
-        store_image(label=label,
-                    drawing=drawing,
-                    raw_storage_location=raw_storage_location
-                    )
+        m = store_image(label=label,
+                        drawing=drawing,
+                        raw_storage_location=raw_storage_location
+                        )
+
+        # Normalize image
+        if normalized_storage_location:
+            normalize_drawing_from_db(m.id, normalized_storage_location=normalized_storage_location)
 
 
 def init_db(metadata_location):
@@ -131,7 +137,7 @@ def vector_to_raster(vector_images, side=28, line_diameter=16, padding=16, bg_co
 
         data = surface.get_data()
         raster_image = np.copy(np.asarray(data)[::4])
-        raster_images.append(raster_image)
+        raster_images.append(raster_image.reshape((side, side)))
 
     return raster_images
 
@@ -148,6 +154,9 @@ def parse_arguments():
     parser.add_argument('raw_storage_location', type=str, action="store",
                         help="Location to store raw files (local or gcp bucket)")
     parser.add_argument("--max_drawings", type=int, action="store", default=100)
+    parser.add_argument('--normalized_storage_location', type=str, action="store", default=None,
+                        help="Optional location to store raw files (local or gcp bucket).  If undefined, images will be"
+                             " loaded to raw but not normalized")
     args = parser.parse_args()
     return args
 

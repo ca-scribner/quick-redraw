@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 
 import sqlalchemy.exc
 
@@ -33,6 +33,21 @@ def find_record_by_id(metadata_id: int) -> Metadata:
     return m
 
 
-def find_records_with_label(label):
-    # Should this return only raw/norm'd?  or make separate funcs for those?
-    raise NotImplementedError()
+def find_records_with_label_normalized(label: str = None) -> List[Metadata]:
+    s = create_session()
+    q = s.query(Metadata)
+    if label:
+        q = q.filter(Metadata.label == label)
+    q = q.filter(Metadata.file_normalized.isnot(None))
+    results = q.all()
+    s.close()
+    return results
+
+
+def find_records_unnormalized() -> List[Metadata]:
+    s = create_session()
+    q = s.query(Metadata)\
+        .filter(Metadata.file_normalized is not None)
+    results = q.all()
+    s.close()
+    return results

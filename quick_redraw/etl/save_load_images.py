@@ -6,10 +6,12 @@ import numpy as np
 
 from quick_redraw.data.metadata import Metadata
 from quick_redraw.data.metadata_db_session import create_session, global_init, add_commit_close
-from quick_redraw.services.metadata_service import add_record_to_metadata, find_record_by_id
+from quick_redraw.services.metadata_service import add_record_to_metadata, find_record_by_id, \
+    find_records_with_label_normalized
 
 
-def store_image(label=None, drawing=None, metadata_id=None, raw_storage_location=None, normalized_storage_location=None):
+def store_image(label=None, drawing=None, metadata_id=None, raw_storage_location=None,
+                normalized_storage_location=None) -> Metadata:
     """
     TODO: this docstring
 
@@ -61,7 +63,8 @@ def store_image(label=None, drawing=None, metadata_id=None, raw_storage_location
     # TODO: If unsuccessful, remove from metadata_db
 
     # Store location in metadata as well
-    add_commit_close(m)
+    add_commit_close(m, expire_on_commit=False)
+    return m
 
 
 def _xor(raw_storage_location, normalized_storage_location):
@@ -79,12 +82,10 @@ def load_drawings(label: str = None, storage_location: str = 'normalized') -> Li
                          f"'{', '.join(valid_storage_locations)}'")
     else:
         storage_location = "file_" + storage_location
-    s = create_session()
-    if label:
-        records = s.query(Metadata).filter(Metadata.label == label).all()
-    else:
-        records = s.query(Metadata).all()
-    s.close()
+
+    records = find_records_with_label_normalized(label)
+
+    # Future: If storage_location does not exist, this wont give a very helpful error
     drawings = [(record.label, np.load(getattr(record, storage_location))) for record in records]
     return drawings
 
