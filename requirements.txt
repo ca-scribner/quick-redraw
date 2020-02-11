@@ -1,3 +1,9 @@
 sqlalchemy
 opencv-python
 scikit-learn
+
+requests
+ray
+ray[tune]
+git+https://github.com/ray-project/tune-sklearn.git
+pandas

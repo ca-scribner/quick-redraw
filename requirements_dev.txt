@@ -5,3 +5,4 @@ cairocffi
 numpy
 matplotlib
 pytest
+ipykernel
