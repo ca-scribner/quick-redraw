@@ -39,12 +39,12 @@ def normalize_drawing(drawing: np.array):
         (np.array)
     """
     # Normalize (note that this implicitly converts to float which is needed for cv2.resize too)
-    drawing = drawing / 255.0
+    drawing = drawing.astype(np.float32) / 255.0
 
     # Resize
     normalized_drawing_size = (28, 28)
     drawing = cv2.resize(drawing, dsize=normalized_drawing_size)
 
-    # Flatten
-    drawing = drawing.reshape(-1)
+    # # Flatten
+    # drawing = drawing.reshape(-1)
     return drawing

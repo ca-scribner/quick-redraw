@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import argparse
 import struct
@@ -18,17 +20,22 @@ def main():
     args = parse_arguments()
     drawing_bin_file = args.drawing_bin_file
     metadata_location = args.metadata_location
-    raw_storage_location = args.raw_storage_location
+    raw_storage_location = os.path.abspath(args.raw_storage_location)
     label = args.label
     max_drawings = args.max_drawings
-    normalized_storage_location = args.normalized_storage_location
+    echo = args.echo
+    normalized_storage_location = os.path.abspath(args.normalized_storage_location)
 
-    init_db(metadata_location=metadata_location)
+    init_db(metadata_location=metadata_location, echo=echo)
 
     drawings_as_raster = load_drawings(drawing_bin_file, max_drawings=max_drawings)
 
     # Store images
-    for drawing in drawings_as_raster:
+    for i, drawing in enumerate(drawings_as_raster):
+        if i % 100 == 0:
+            print(f"Processing drawing {i}")
+        # Ensure drawings are simplest type needed
+        drawing = drawing.astype(np.uint8)
         m = store_image(label=label,
                         drawing=drawing,
                         raw_storage_location=raw_storage_location
@@ -39,8 +46,8 @@ def main():
             normalize_drawing_from_db(m.id, normalized_storage_location=normalized_storage_location)
 
 
-def init_db(metadata_location):
-    global_init(metadata_location)
+def init_db(metadata_location, echo):
+    global_init(metadata_location, echo=echo)
 
 
 def load_drawings(drawing_bin_file, max_drawings=np.inf):
@@ -49,7 +56,6 @@ def load_drawings(drawing_bin_file, max_drawings=np.inf):
 
     for i, drawing_as_vector in enumerate(unpack_drawings(drawing_bin_file)):
         if i >= max_drawings:
-            print(f"Drawing limit reached ({max_drawings})")
             break
         drawings_as_vector.append(drawing_as_vector['image'])
 
@@ -157,6 +163,8 @@ def parse_arguments():
     parser.add_argument('--normalized_storage_location', type=str, action="store", default=None,
                         help="Optional location to store raw files (local or gcp bucket).  If undefined, images will be"
                              " loaded to raw but not normalized")
+    parser.add_argument("--echo", action="store_true",
+                        help="Optional argument to enable SQLAlchemy db call printing")
     args = parser.parse_args()
     return args
 

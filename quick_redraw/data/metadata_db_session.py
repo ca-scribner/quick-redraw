@@ -30,7 +30,6 @@ def global_init(db_path: str, echo: bool = True):
 
     # TODO: Handle GCP
     conn_str = "sqlite:///" + db_path
-    print(f"Connecting to DB at {conn_str}")
 
     engine = sa.create_engine(conn_str, echo=echo)
 

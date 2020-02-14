@@ -17,6 +17,7 @@ def store_image(label=None, drawing=None, metadata_id=None, raw_storage_location
 
     Note: Assumes metadata_db is initialized already
     Future: This feels too multi-purpose - is there a better way to refactor?
+            Break into store_raw and store_normalized, that way I can enforce things like different dtypes (raw as uint)
 
     Args:
         label:
@@ -31,14 +32,13 @@ def store_image(label=None, drawing=None, metadata_id=None, raw_storage_location
     if not _xor(raw_storage_location, normalized_storage_location):
         raise ValueError("Exactly one of raw_storage_location and normalized_storage_location must be specified")
     # Basic validation
-    drawing = np.asarray(drawing, dtype=int)
+    drawing = np.asarray(drawing)
 
     if not metadata_id:
         if not label:
             raise ValueError("Storing a new record requires a label")
         # put record into metadata_db
         m = add_record_to_metadata()
-        print(f"Added metadata record {m}")
     else:
         # Get existing record
         m = find_record_by_id(metadata_id=metadata_id)
@@ -68,10 +68,6 @@ def store_image(label=None, drawing=None, metadata_id=None, raw_storage_location
 
 
 def _xor(raw_storage_location, normalized_storage_location):
-    print(f"raw_storage_location = {raw_storage_location}")
-    print(f"normalized_storage_location = {normalized_storage_location}")
-    print(
-        f"bool(raw_storage_location) != bool(normalized_storage_location) = {bool(raw_storage_location) != bool(normalized_storage_location)}")
     return bool(raw_storage_location) != bool(normalized_storage_location)
 
 
