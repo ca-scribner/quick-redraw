@@ -21,4 +21,4 @@ class TrainingData(SqlAlchemyBase):
     created_date: datetime.datetime = sa.Column(sa.DateTime, default=datetime.datetime.now, index=True)
 
     def __str__(self):
-        return f"TrainingData id={self.id}, train={self.train}, test={self.test}, class_map={self.class_map}"
+        return f"TrainingData id={self.id}, train={self.train}, test={self.test}, class_map={self.class_names}"

@@ -71,7 +71,8 @@ def _xor(raw_storage_location, normalized_storage_location):
     return bool(raw_storage_location) != bool(normalized_storage_location)
 
 
-def load_drawings(label: str = None, storage_location: str = 'normalized') -> List[Tuple[str, np.array]]:
+def load_drawings(label: str = None, storage_location: str = 'normalized', return_records: bool=False) \
+        -> List[Tuple[str, np.array]]:
     valid_storage_locations = ['normalized', 'raw']
     if storage_location not in valid_storage_locations:
         raise ValueError(f"Invalid storage location '{storage_location}, must be one of "
@@ -83,7 +84,11 @@ def load_drawings(label: str = None, storage_location: str = 'normalized') -> Li
 
     # Future: If storage_location does not exist, this wont give a very helpful error
     drawings = [(record.label, np.load(getattr(record, storage_location))) for record in records]
-    return drawings
+
+    if return_records:
+        return drawings, records
+    else:
+        return drawings
 
 
 # # Queued for removal.  I think this is better living in load_data.  It is basically just code to enable testing,
