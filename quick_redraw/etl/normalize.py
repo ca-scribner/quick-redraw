@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-from quick_redraw.etl.save_load_images import store_image
+from quick_redraw.etl.save_load_images import store_image, load_drawing_from_id
 from quick_redraw.services.metadata_service import find_record_by_id
 
 
@@ -20,7 +20,7 @@ def normalize_drawing_from_db(metadata_id: int, normalized_storage_location: str
     m = find_record_by_id(metadata_id)
 
     # Load npy from m
-    drawing_raw = np.load(m.file_raw)
+    drawing_raw = load_drawing_from_id(metadata_id, storage_location="raw")
 
     drawing_normalized = normalize_drawing(drawing_raw)
 
@@ -38,8 +38,11 @@ def normalize_drawing(drawing: np.array):
     Returns:
         (np.array)
     """
-    # Normalize (note that this implicitly converts to float which is needed for cv2.resize too)
-    drawing = drawing.astype(np.float32) / 255.0
+    drawing = drawing.astype(np.float32)
+
+    # Grayscale (am I getting the source color scheme right here?)
+    # Going to grayscale changes this from a (NxMx3) to an (NxM) array
+    drawing = cv2.cvtColor(drawing, cv2.COLOR_BGR2GRAY)
 
     # Resize
     normalized_drawing_size = (28, 28)

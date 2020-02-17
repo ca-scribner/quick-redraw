@@ -1,5 +1,5 @@
-import argparse
 import os
+import cv2
 from typing import List, Tuple
 
 import numpy as np
@@ -50,15 +50,15 @@ def store_image(label=None, drawing=None, metadata_id=None, raw_storage_location
     # Store img file in raw_storage_location as label_metadataId (so it is unique and easily understood)
     # TODO: Handle GCP
     if raw_storage_location:
-        filepath = os.path.join(raw_storage_location, f"{m.label}_{m.id}.npy")
+        filepath = os.path.join(raw_storage_location, f"{m.label}_{m.id}.png")
         m.file_raw = filepath
     elif normalized_storage_location:
-        filepath = os.path.join(normalized_storage_location, f"{m.label}_{m.id}.npy")
+        filepath = os.path.join(normalized_storage_location, f"{m.label}_{m.id}.png")
         m.file_normalized = filepath
     else:
         raise ValueError("No storage location specified -- how did I get here? Should have gotten caught by input "
                          "validation.")
-    np.save(filepath, drawing)
+    cv2.imwrite(filepath, drawing)
 
     # TODO: If unsuccessful, remove from metadata_db
 
@@ -71,8 +71,40 @@ def _xor(raw_storage_location, normalized_storage_location):
     return bool(raw_storage_location) != bool(normalized_storage_location)
 
 
-def load_drawings(label: str = None, storage_location: str = 'normalized', return_records: bool=False) \
-        -> List[Tuple[str, np.array]]:
+def load_drawing_from_id(metadata_id: int, storage_location: str = "normalized", return_record=False):
+    """
+    Loads and returns a drawing given a metadata id and storage_location.  Optionally returns record as well
+
+    Args:
+        metadata_id (str): Drawing metadata id
+        storage_location (str): Any storage location accepted by load_drawing_from_record
+        return_record (bool): If True, returns (drawing, Metadata).  Else, returns drawing.
+
+    Returns:
+        If return_record:
+            (drawing, Metadata), where drawing is a numpy array
+        else:
+            drawing, where drawing is a numpy array
+    """
+    record = find_record_by_id(metadata_id)
+    drawing = load_drawing_from_record(record, storage_location=storage_location)
+    if return_record:
+        return drawing, record
+    else:
+        return drawing
+
+
+def load_drawing_from_record(record: Metadata, storage_location: str = "normalized"):
+    """
+    Loads and returns a drawing given a Metadata object and storage_location
+
+    Args:
+        record (Metadata): Drawing metadata object
+        storage_lcoation (str): Any of "normalized" or "raw", denoting the type of file to be returned
+
+    Returns:
+        (np.array): drawing in numpy array format
+    """
     valid_storage_locations = ['normalized', 'raw']
     if storage_location not in valid_storage_locations:
         raise ValueError(f"Invalid storage location '{storage_location}, must be one of "
@@ -80,16 +112,22 @@ def load_drawings(label: str = None, storage_location: str = 'normalized', retur
     else:
         storage_location = "file_" + storage_location
 
+    # Future: If storage_location does not exist, this wont give a very helpful error
+    return cv2.imread(getattr(record, storage_location))
+
+
+def load_drawings(label: str = None, storage_location: str = 'normalized', return_records: bool = False) \
+        -> List[Tuple[str, np.array]]:
+
     records = find_records_with_label_normalized(label)
 
     # Future: If storage_location does not exist, this wont give a very helpful error
-    drawings = [(record.label, np.load(getattr(record, storage_location))) for record in records]
+    drawings = [(record.label, load_drawing_from_record(record, storage_location)) for record in records]
 
     if return_records:
         return drawings, records
     else:
         return drawings
-
 
 # # Queued for removal.  I think this is better living in load_data.  It is basically just code to enable testing,
 # # so the testing part of this should just BE in testing.
