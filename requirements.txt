@@ -1,6 +1,7 @@
 sqlalchemy
 opencv-python
 scikit-learn
+Pillow
 
 requests
 ray

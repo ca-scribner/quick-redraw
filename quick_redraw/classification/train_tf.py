@@ -9,7 +9,7 @@ from tensorflow.keras import Model
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
 
 from quick_redraw.data.metadata_db_session import global_init, create_session
-from quick_redraw.etl.save_load_images import load_drawings
+from quick_redraw.services.image_storage_service import load_drawings
 
 
 # Based off of https://github.com/ray-project/ray/blob/master/python/ray/tune/examples/tf_mnist_example.py

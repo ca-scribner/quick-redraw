@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-from quick_redraw.etl.save_load_images import store_image, load_drawing_from_id
+from quick_redraw.services.image_storage_service import store_image, load_drawing_from_id
 from quick_redraw.services.metadata_service import find_record_by_id
 
 

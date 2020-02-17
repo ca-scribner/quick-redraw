@@ -2,12 +2,11 @@ from collections import namedtuple
 
 import numpy as np
 from ray.tune.schedulers import MedianStoppingRule
-from sklearn.model_selection import RandomizedSearchCV
 from sklearn.pipeline import Pipeline
 from tune_sklearn.tune_search import TuneGridSearchCV
 
 from quick_redraw.data.metadata_db_session import global_init
-from quick_redraw.etl.save_load_images import load_drawings
+from quick_redraw.services.image_storage_service import load_drawings
 from sklearn.svm import SVC
 
 from scipy.stats import loguniform

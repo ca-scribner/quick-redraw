@@ -7,7 +7,7 @@ import sklearn.model_selection
 
 from quick_redraw.data.metadata_db_session import global_init, create_session
 from quick_redraw.data.training_data import TrainingData
-from quick_redraw.etl.save_load_images import load_drawings
+from quick_redraw.services.image_storage_service import load_drawings
 
 
 def train_test_split(training_data_storage_location, test_size=0.2, random_state=42):
