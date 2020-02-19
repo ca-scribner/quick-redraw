@@ -12,13 +12,17 @@ class TrainingData(SqlAlchemyBase):
 
     id: int = sa.Column(BigIntegerType, primary_key=True, autoincrement=True)
 
-    # FUTURE: Train/Test image lists stored as json lists.  Should use a separate table for a list of foreign keys
+    # FUTURE: Train and Test records should be stored here as references to another table that keeps each individual
+    # record.  That table would reference original_metadata_id, embedded_label.  Then here we'd also have the
+    # labeel_to_index and index_to_label.
+    # Might need this too?
     # eg: https://stackoverflow.com/questions/3070384/how-to-store-a-list-in-a-column-of-a-database-table
-    # Should I use sa.JSON or just text and interpret as json myself?  Not everything supports JSON natively
     train: list = sa.Column(sa.JSON)
     test: list = sa.Column(sa.JSON)
-    class_names: list = sa.Column(sa.JSON)
+    labels_as_index: list = sa.Column(sa.JSON)
+    index_to_label: list = sa.Column(sa.JSON)
+    label_to_index: dict = sa.Column(sa.JSON)
     created_date: datetime.datetime = sa.Column(sa.DateTime, default=datetime.datetime.now, index=True)
 
-    def __str__(self):
-        return f"TrainingData id={self.id}, train={self.train}, test={self.test}, class_map={self.class_names}"
+    # def __str__(self):
+    #     return f"TrainingData id={self.id}, train={self.train}, test={self.test}, class_map={self.index_to_class_name}"
