@@ -1,29 +1,53 @@
+from itertools import cycle
+
 import pytest
 
-from quick_redraw.data.metadata_db_session import global_init, create_session
+from quick_redraw.data.db_session import global_init, create_session, global_forget
+from quick_redraw.data.image_record import ImageRecord
 from quick_redraw.data.training_data import TrainingData
+from quick_redraw.services.metadata_service import find_records_with_label_normalized
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture
 def db_init():
     # global_init builds tables and populates session factory
     global_init('', echo=True)
+    yield
+    global_forget()
 
 
-def test_training_data_insert(db_init):
+@pytest.fixture
+def db_with_images(db_init):
+    s = create_session()
+    n_images = 10
+    c = cycle(['cat', 'dog'])
+    imgs = [ImageRecord(label=next(c), file_raw='raw.png') for i in range(n_images)]
+    for i in range(0, len(imgs) // 2):
+        imgs[i].file_normalized = 'norm.png'
+    s.add_all(imgs)
+    s.commit()
+
+
+def test_training_data_insert(db_with_images):
     s = create_session()
 
-    train = ['1', '2', '3']
-    test = ['a', 'b']
-    class_names = ['cat', 'dog']
+    records = find_records_with_label_normalized()
 
-    td = TrainingData(train=train, test=test, class_names=class_names)
+    index_to_label = ['cat', 'dog']
+    label_to_index = {0: 'cat', 1: 'dog'}
+
+    td = TrainingData(index_to_label=index_to_label, label_to_index=label_to_index)
+    td.training_images.extend(records[:2])
+    td.testing_images.extend(records[2:])
+
     s.add(td)
     s.commit()
 
     td_out = s.query(TrainingData).first()
 
-    for attr in ['id', 'train', 'test', 'class_names']:
+    assert len(td_out.training_images) == 2
+
+    for attr in ['id', 'training_images', 'testing_images', 'index_to_label', 'label_to_index']:
         assert getattr(td, attr) == getattr(td_out, attr)
 
     assert td == td_out

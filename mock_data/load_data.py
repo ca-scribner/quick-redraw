@@ -8,7 +8,7 @@ from collections import deque
 
 import cairocffi as cairo
 
-from quick_redraw.data.metadata_db_session import global_init
+from quick_redraw.data.db_session import global_init
 from quick_redraw.etl.normalize import normalize_drawing_from_db
 from quick_redraw.services.image_storage_service import store_image
 

@@ -1,17 +1,10 @@
 import os
-import tempfile
-from unittest import mock
 
 import pytest
 import numpy as np
 
-import sqlalchemy as sa
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
-
-from quick_redraw.data.metadata import Metadata
-from quick_redraw.data.metadata_db_session import global_init, create_session
-from quick_redraw.data.modelbase import SqlAlchemyBase
+from quick_redraw.data.image_record import ImageRecord
+from quick_redraw.data.db_session import global_init, create_session
 from quick_redraw.etl.normalize import normalize_drawing_from_db
 
 # Fixtures inspired by: https://gist.github.com/kissgyorgy/e2365f25a213de44b9a2
@@ -37,7 +30,7 @@ def dummy_image(tmpdir):
 
 @pytest.fixture
 def db_with_image(dummy_image):
-    m = Metadata()
+    m = ImageRecord()
     m.file_raw = dummy_image
     m.label = FAKE_LABEL
     s = create_session()
@@ -47,7 +40,7 @@ def db_with_image(dummy_image):
 
     # Not sure why, but if I don't close and reopen the session I get a thread error.
     s = create_session()
-    m_objs = s.query(Metadata).all()
+    m_objs = s.query(ImageRecord).all()
     print([str(m) for m in m_objs])
     s.close()
 
@@ -62,7 +55,7 @@ def test_normalize_image_from_db_local(db_with_image, tmpdir, db_init):  # metad
     """
     # Verbose way to get m_id just in case we change the data creation routines.  This ensures there's a single record
     s = create_session()
-    all_records = s.query(Metadata).all()
+    all_records = s.query(ImageRecord).all()
     s.close()
     assert len(all_records) == 1
     assert all_records[0].file_normalized is None
@@ -71,7 +64,7 @@ def test_normalize_image_from_db_local(db_with_image, tmpdir, db_init):  # metad
     normalize_drawing_from_db(m_id, tmpdir)
 
     s = create_session()
-    all_records = s.query(Metadata).all()
+    all_records = s.query(ImageRecord).all()
     s.close()
     assert len(all_records) == 1
 

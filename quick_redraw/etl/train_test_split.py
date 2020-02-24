@@ -5,7 +5,7 @@ import argparse
 
 import sklearn.model_selection
 
-from quick_redraw.data.metadata_db_session import global_init, create_session
+from quick_redraw.data.db_session import global_init, create_session
 from quick_redraw.data.training_data import TrainingData
 from quick_redraw.services.image_storage_service import load_normalized_images
 

@@ -5,8 +5,8 @@ from quick_redraw.data.modelbase import SqlAlchemyBase
 from quick_redraw.data.big_integer_type import BigIntegerType
 
 
-class Metadata(SqlAlchemyBase):
-    __tablename__ = "metadata"
+class ImageRecord(SqlAlchemyBase):
+    __tablename__ = "image_record"
 
     id: int = sa.Column(BigIntegerType, primary_key=True, autoincrement=True)
     # id: int = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
@@ -15,6 +15,6 @@ class Metadata(SqlAlchemyBase):
     file_raw: str = sa.Column(sa.String, nullable=True)
     file_normalized: str = sa.Column(sa.String, nullable=True)
 
-    def __str__(self):
-        return f"Metadata id={self.id}, label={self.label}, created_date={self.created_date}, file_raw={self.file_raw}," \
-               f" file_normalized={self.file_normalized}"
+    def __repr__(self):
+        return f"Metadata id={self.id}; label={self.label}; created_date={self.created_date}; " \
+               f"file_raw={self.file_raw}; file_normalized={self.file_normalized}"

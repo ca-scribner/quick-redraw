@@ -42,6 +42,16 @@ def global_init(db_path: str, echo: bool = True):
     print("DB global_init complete")
 
 
+def global_forget():
+    """
+    Forgets global initialization
+
+    Not sure what the more proper way is to do this.  Only used for some debugging
+    """
+    global __factory
+    __factory = None
+
+
 def create_session() -> sa.orm.Session:
     """
     Create and return a session

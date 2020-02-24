@@ -4,14 +4,14 @@ from typing import List, Tuple
 
 import numpy as np
 
-from quick_redraw.data.metadata import Metadata
-from quick_redraw.data.metadata_db_session import create_session, global_init, add_commit_close
+from quick_redraw.data.image_record import ImageRecord
+from quick_redraw.data.db_session import create_session, global_init, add_commit_close
 from quick_redraw.services.metadata_service import add_record_to_metadata, find_record_by_id, \
     find_records_with_label_normalized
 
 
 def store_image(label=None, drawing=None, metadata_id=None, raw_storage_location=None,
-                normalized_storage_location=None) -> Metadata:
+                normalized_storage_location=None) -> ImageRecord:
     """
     TODO: this docstring
 
@@ -94,12 +94,12 @@ def load_drawing_from_id(metadata_id: int, storage_location: str = "normalized",
         return drawing
 
 
-def load_drawing_from_record(record: Metadata, storage_location: str = "normalized") -> np.array:
+def load_drawing_from_record(record: ImageRecord, storage_location: str = "normalized") -> np.array:
     """
     Loads and returns a drawing given a Metadata object and storage_location
 
     Args:
-        record (Metadata): Drawing metadata object
+        record (ImageRecord): Drawing metadata object
         storage_location (str): Any of "normalized" or "raw", denoting the type of file to be returned
 
     Returns:
