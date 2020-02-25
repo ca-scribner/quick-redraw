@@ -10,6 +10,7 @@ import cairocffi as cairo
 
 from quick_redraw.data.db_session import global_init
 from quick_redraw.etl.normalize import normalize_drawing_from_db
+from quick_redraw.etl.train_test_split import create_training_data_from_image_db
 from quick_redraw.services.image_storage_service import store_image
 
 
@@ -32,7 +33,7 @@ def main():
 
     # Store images
     for i, drawing in enumerate(drawings_as_raster):
-        if i % 100 == 0:
+        if i % 50 == 0:
             print(f"Processing drawing {i}")
         # Ensure drawings are simplest type needed
         drawing = drawing.astype(np.uint8)

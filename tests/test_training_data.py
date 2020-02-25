@@ -5,6 +5,7 @@ import pytest
 from quick_redraw.data.db_session import global_init, create_session, global_forget
 from quick_redraw.data.image_record import ImageRecord
 from quick_redraw.data.training_data import TrainingData
+from quick_redraw.etl.train_test_split import create_training_data_from_image_db
 from quick_redraw.services.metadata_service import find_records_with_label_normalized
 
 
@@ -51,3 +52,16 @@ def test_training_data_insert(db_with_images):
         assert getattr(td, attr) == getattr(td_out, attr)
 
     assert td == td_out
+
+
+def test_train_test_split(db_with_images):
+    create_training_data_from_image_db(test_size=0.4, random_state=42)
+
+    s = create_session()
+    tds = s.query(TrainingData).all()
+
+    assert len(tds) == 1
+
+    td = tds[0]
+    assert len(td.training_images) == 3
+    assert len(td.testing_images) == 2
