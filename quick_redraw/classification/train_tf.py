@@ -8,8 +8,8 @@ from sklearn.preprocessing import LabelEncoder
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
 
-from quick_redraw.data.metadata_db_session import global_init, create_session
-from quick_redraw.services.image_storage_service import load_drawings
+from quick_redraw.data.db_session import global_init, create_session
+from quick_redraw.services.image_storage_service import load_normalized_images, load_training_data_to_dataframe
 
 
 # Based off of https://github.com/ray-project/ray/blob/master/python/ray/tune/examples/tf_mnist_example.py
@@ -58,47 +58,58 @@ class MyModel(Model):
         return self.d2(x)
 
 
-
 class MyTrainable(tune.Trainable):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.label_encoder_ = None
 
     def _setup(self, config):
+        # Fixes issue with interaction between Ray actors and TF as described here:
+        # https://github.com/ray-project/ray/blob/master/python/ray/tune/examples/tf_mnist_example.py
         import tensorflow as tf
+        from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
         # Apply defaults
         config['batchsize'] = config.get('batchsize', 32)
 
-        # Fixes issue with interaction between Ray actors and TF as described here:
-        # https://github.com/ray-project/ray/blob/master/python/ray/tune/examples/tf_mnist_example.py
-        x_train, y_train, x_test, y_test = load_data(config['metadata_location'])
+        df_train, df_test, index_to_label = load_training_data_to_dataframe()
 
-        # Define encoder
-        # TODO: Where should I actually encode the label?  Should encoding be in ETL/db?")
-        label_encoder = LabelEncoder()
-        y_train = label_encoder.fit_transform(y_train)
-        y_test = label_encoder.transform(y_test)
+        idg_train = ImageDataGenerator()
+        train_generator = idg_train.flow_from_dataframe(df_train, batch_size=config['batchsize'])
+        idg_test = ImageDataGenerator()
+        train_generator = idg_test.flow_from_dataframe(df_test, batch_size=config['batchsize'])
 
-        self.label_encoder_ = label_encoder
+        #
+        #
+        #
+        # x_train, y_train, x_test, y_test = load_data(config['metadata_location'])
+        #
+        # # Define encoder
+        # # TODO: Where should I actually encode the label?  Should encoding be in ETL/db?")
+        # label_encoder = LabelEncoder()
+        # y_train = label_encoder.fit_transform(y_train)
+        # y_test = label_encoder.transform(y_test)
+        #
+        # self.label_encoder_ = label_encoder
+        #
+        # # Infer number of output classes
+        # print("NEED TO HANDLE NUMBER OF OUTPUTS AND MAPPING BETTER")
+        # n_output = len(np.unique(y_train))
+        #
+        # # TODO: Do I need to add an extra channels dimension?  I'm using greyscale, but is it expected downstream?
+        # x_train = x_train[..., tf.newaxis]
+        # x_test = x_test[..., tf.newaxis]
+        # # x_train = x_train[..., None]
+        # # x_test = x_test[..., None]
+        #
+        #
+        # self.train_ds = tf.data.Dataset.from_tensor_slices((x_train, y_train)) \
+        #     .shuffle(20000) \
+        #     .batch(config['batchsize'])
+        # self.test_ds = tf.data.Dataset.from_tensor_slices((x_test, y_test)) \
+        #     .batch(config['batchsize'])
 
-        # Infer number of output classes
-        print("NEED TO HANDLE NUMBER OF OUTPUTS AND MAPPING BETTER")
-        n_output = len(np.unique(y_train))
-
-        # TODO: Do I need to add an extra channels dimension?  I'm using greyscale, but is it expected downstream?
-        x_train = x_train[..., tf.newaxis]
-        x_test = x_test[..., tf.newaxis]
-        # x_train = x_train[..., None]
-        # x_test = x_test[..., None]
-
-
-        self.train_ds = tf.data.Dataset.from_tensor_slices((x_train, y_train)) \
-            .shuffle(20000) \
-            .batch(config['batchsize'])
-        self.test_ds = tf.data.Dataset.from_tensor_slices((x_test, y_test)) \
-            .batch(config['batchsize'])
-
-        self.model = SimpleConv(n_output=n_output,
+        self.model = SimpleConv(n_output=len(index_to_label),
                                 conv_filters=config['conv_filters'],
                                 conv_kernel_size=config['conv_kernel_size'],
                                 conv_stride=config['conv_stride'],
@@ -169,7 +180,7 @@ class MyTrainable(tune.Trainable):
 def load_data(metadata_location):
     global_init(metadata_location)
 
-    label_drawing_tuples = load_drawings(storage_location='normalized')
+    label_drawing_tuples = load_normalized_images(storage_location='normalized')
     if not label_drawing_tuples:
         raise ValueError("No training drawings found in db")
     labels, drawings = zip(*label_drawing_tuples)
