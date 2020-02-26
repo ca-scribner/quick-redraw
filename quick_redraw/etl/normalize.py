@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-from quick_redraw.services.image_storage_service import store_image, load_drawing_from_id
+from quick_redraw.services.image_storage_service import store_image, load_image_from_id
 from quick_redraw.services.metadata_service import find_record_by_id
 
 
@@ -20,7 +20,7 @@ def normalize_drawing_from_db(metadata_id: int, normalized_storage_location: str
     m = find_record_by_id(metadata_id)
 
     # Load npy from m
-    drawing_raw = load_drawing_from_id(metadata_id, storage_location="raw")
+    drawing_raw = load_image_from_id(metadata_id, storage_location="raw")
 
     drawing_normalized = normalize_drawing(drawing_raw)
 
