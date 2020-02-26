@@ -164,8 +164,9 @@ def load_training_data_to_dataframe(training_data_id=None):
 
 def _image_records_to_dataframe(image_records, label_to_index):
     data = {
-        'filename': [img.normalized for img in image_records],
+        'filename': [img.file_normalized for img in image_records],
         'class': [label_to_index[img.label] for img in image_records],
+        'class_id_as_string': [str(label_to_index[img.label]) for img in image_records],
         'class_string': [img.label for img in image_records],
         'image_id': [img.id for img in image_records],
     }
