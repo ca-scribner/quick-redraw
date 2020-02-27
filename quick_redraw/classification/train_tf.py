@@ -127,7 +127,7 @@ class MyTrainable(tune.Trainable):
             "loss": history.history['loss'],
             "accuracy": history.history['accuracy'],
             "test_loss": test_loss,
-            "test_accuracy": test_accuracy,
+            "mean_accuracy": test_accuracy,
         }
 
     # FUTURE: Implement _save and _restore to allow for checkpointing?
@@ -139,10 +139,12 @@ if __name__ == '__main__':
 
     # For debugging
     # ray.init(local_mode=True)
+    # Limit us to 2CPUs (threads) during testing
+    ray.init(num_cpus=2)
 
-    tune.run(
+    analysis = tune.run(
         MyTrainable,
-        stop={"training_iteration": 5},
+        stop={"training_iteration": 3},
         verbose=1,
         config={
             "metadata_location": metadata_location,
@@ -150,12 +152,31 @@ if __name__ == '__main__':
             'conv_kernel_size': tune.grid_search([3]),
             'conv_stride': tune.grid_search([1]),
             'pool_size': tune.grid_search([2]),
-            'dense_layer_size': tune.grid_search([64]),
-            'dropout': tune.grid_search([0.0]),
+            'dense_layer_size': tune.grid_search([64, 128]),
+            'dropout': tune.grid_search([0.0, 0.2]),
             'learning_rate': tune.grid_search([0.0001])
             # 'epochs': tune.grid_search([1, 5, 10, 20])  # Training epochs.  Bother varying?  What would this affect?
             # 'dense_layer_size': tune.grid_search([64, 128]),
             # 'dropout': tune.grid_search([0.0, 0.2, 0.5]),
             # 'learning_rate': tune.grid_search([0.0001, 0.001, 0.01])
-        }
+        },
+        # Are training results described here everything (full model checkpoint available?)  Guess I just need params
+        # for a retrain on all data
+        local_dir="./ray_results/"  # Where training results are stored locally
+        # upload_dir="s3://...",  # Could use this to store training progress to remote storage
+
     )
+
+    print(f"Best configuration is: {analysis.get_best_config('mean_accuracy')}")
+
+    fout = 'results.xlsx'
+    print(f"Saving results to dataframe {fout}")
+    analysis.dataframe().to_excel(fout)
+
+    all_dataframes = analysis.trial_dataframes
+    print(f"all_dataframes (this is a dataframe for each trial, with rows for each training iteration)= \n{all_dataframes}")
+
+    print(f"analysis.trials = \n{analysis.trials}")
+
+    import joblib
+    joblib.dump(analysis, 'analysis.joblib')
