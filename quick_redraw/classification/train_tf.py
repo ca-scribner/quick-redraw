@@ -1,7 +1,9 @@
 import os
 
 import ray
+from mlflow.tracking import MlflowClient
 from ray import tune
+from ray.tune.logger import DEFAULT_LOGGERS, MLFLowLogger
 
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
@@ -112,7 +114,7 @@ class MyTrainable(tune.Trainable):
         # print(self.model.summary())
 
     def _train(self):
-        history = self.model.fit(
+        train_history = self.model.fit(
             x=self.train_gen,
             epochs=self.config.get("epochs", 1)
         )
@@ -124,29 +126,43 @@ class MyTrainable(tune.Trainable):
 
         return {
             "epoch": self.iteration,
-            "loss": history.history['loss'],
-            "accuracy": history.history['accuracy'],
-            "test_loss": test_loss,
-            "mean_accuracy": test_accuracy,
+            # steps within this training epoch
+            "loss": train_history.history['loss'],
+            "accuracy": train_history.history['accuracy'],
+            "test_loss": float(test_loss),
+            "mean_accuracy": float(test_accuracy),
         }
 
     # FUTURE: Implement _save and _restore to allow for checkpointing?
 
 
+# class TestLogger(tune.logger.Logger):
+#     def on_result(self, result):
+#         import pprint
+#         print(f"(LOGGER) result =")
+#         pprint.pprint(result)
+#         print(f"type(result) = {type(result)}")
+
+
 if __name__ == '__main__':
+    # # For debugging
+    # ray.init(local_mode=True, num_cpus=1)
+    # Limit us to N CPUs (threads) during testing
+    ray.init(num_cpus=4)
+
     # FUTURE: Add CLI
     metadata_location = os.path.join(os.path.dirname(__file__), '..', '..', 'mock_data', 'untracked', 'metadata.sqlite')
+    mlflow_uri = './'
+    mlflow_experiment_id = '0'
 
-    # For debugging
-    # ray.init(local_mode=True)
-    # Limit us to 2CPUs (threads) during testing
-    ray.init(num_cpus=2)
+    client = MlflowClient(tracking_uri=mlflow_uri)
 
     analysis = tune.run(
         MyTrainable,
-        stop={"training_iteration": 3},
+        stop={"training_iteration": 10},
         verbose=1,
         config={
+            "mlflow_experiment_id": mlflow_experiment_id,
             "metadata_location": metadata_location,
             'conv_filters': tune.grid_search([32]),
             'conv_kernel_size': tune.grid_search([3]),
@@ -162,9 +178,10 @@ if __name__ == '__main__':
         },
         # Are training results described here everything (full model checkpoint available?)  Guess I just need params
         # for a retrain on all data
-        local_dir="./ray_results/"  # Where training results are stored locally
+        local_dir="./ray_results/",  # Where training results are stored locally
         # upload_dir="s3://...",  # Could use this to store training progress to remote storage
-
+        # Loggers are called at the end of each training_iteration
+        loggers=DEFAULT_LOGGERS + (MLFLowLogger, ),
     )
 
     print(f"Best configuration is: {analysis.get_best_config('mean_accuracy')}")
