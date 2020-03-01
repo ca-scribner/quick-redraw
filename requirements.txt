@@ -3,6 +3,8 @@ opencv-python
 scikit-learn
 Pillow
 tensorflow
+numpy
+mlflow
 
 requests
 ray
