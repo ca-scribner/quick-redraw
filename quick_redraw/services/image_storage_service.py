@@ -152,8 +152,13 @@ def load_training_data_to_dataframe(training_data_id=None):
     s = create_session()
     if training_data_id:
         td: TrainingData = s.query(TrainingData).filter(TrainingData.id == training_data_id).first()
+        if not td:
+            raise ValueError(f"Cannot find TrainingData entry with id = {training_data_id}")
     else:
         td: TrainingData = s.query(TrainingData).order_by(TrainingData.created_date.desc()).first()
+        if not td:
+            raise ValueError(f"Cannot find any TrainingData entries")
+
 
     # Build pd.DataFrame objects that are suitable for tf.keras.preprocessing.image.ImageDataGenerator
     df_train = _image_records_to_dataframe(td.training_images, td.label_to_index)

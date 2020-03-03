@@ -1,4 +1,7 @@
+import datetime
 import os
+import argparse
+from typing import Tuple
 
 import ray
 from mlflow.tracking import MlflowClient
@@ -136,34 +139,71 @@ class MyTrainable(tune.Trainable):
     # FUTURE: Implement _save and _restore to allow for checkpointing?
 
 
-# class TestLogger(tune.logger.Logger):
-#     def on_result(self, result):
-#         import pprint
-#         print(f"(LOGGER) result =")
-#         pprint.pprint(result)
-#         print(f"type(result) = {type(result)}")
+def parse_arguments() -> Tuple[str, int, str, str, bool]:
+    parser = argparse.ArgumentParser(description="Performs a hyperparameter search for a model on a specified set of"
+                                                 "training data")
+    parser.add_argument('model', type=str, action="store",
+                        help="Name of model to use during training")
+    parser.add_argument('td_id', type=int, action="store",
+                        help="ID number of the TrainingData entry that defines Train/Test data")
+    parser.add_argument('db_location', type=str, action="store",
+                        help="Path to the database with TrainingDataRecord table")
+    parser.add_argument('mlflow_uri', type=str, action="store",
+                        help="Path to the mlflow tracking server (remote and local supported)")
+    parser.add_argument('--smoke_test', action="store_true",
+                        help="Limit to 3 epochs per training run for debugging")
+    args = parser.parse_args()
+
+    # FUTURE: For now, assume db_location is local and make it absolute relative to here.  This is needed because all
+    #  tune training runs will be run in their own location.  For distributed training using ray I'll need a better
+    #  solution (cloud db?)
+    import os
+    args.db_location = os.path.abspath(args.db_location)
+
+    return args.model, args.td_id, args.db_location, args.mlflow_uri, args.smoke_test
 
 
-if __name__ == '__main__':
+def main(model: str, td_id: int, metadata_location: str, mlflow_uri: str, smoke_test: bool):
+    """
+    FUTURE: Docstring
+
+    Args:
+        model:
+        td_id:
+        metadata_location:
+        mlflow_uri:
+        smoke_test:
+
+    Returns:
+
+    """
     # # For debugging
     # ray.init(local_mode=True, num_cpus=1)
     # Limit us to N CPUs (threads) during testing
     ray.init(num_cpus=4)
 
-    # FUTURE: Add CLI
-    metadata_location = os.path.join(os.path.dirname(__file__), '..', '..', 'mock_data', 'untracked', 'metadata.sqlite')
-    mlflow_uri = './'
-    mlflow_experiment_id = '0'
+    print("WARNING: model argument not fully implemented.")
 
+    # Initialize the mlflow session and create an experiment
     client = MlflowClient(tracking_uri=mlflow_uri)
+    now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    experiment_name = f"{now}_{model}_tdr.{td_id}"
+    mlflow_experiment_id = client.create_experiment(name=experiment_name)
+
+    if smoke_test:
+        training_iteration = 3
+    else:
+        training_iteration = 10
 
     analysis = tune.run(
         MyTrainable,
-        stop={"training_iteration": 10},
+        stop={"training_iteration": training_iteration},
         verbose=1,
         config={
             "mlflow_experiment_id": mlflow_experiment_id,
+            "training_data_id": td_id,
             "metadata_location": metadata_location,
+            # FUTURE: Inherrit the grid settings from the model definition?
             'conv_filters': tune.grid_search([32]),
             'conv_kernel_size': tune.grid_search([3]),
             'conv_stride': tune.grid_search([1]),
@@ -186,14 +226,7 @@ if __name__ == '__main__':
 
     print(f"Best configuration is: {analysis.get_best_config('mean_accuracy')}")
 
-    fout = 'results.xlsx'
-    print(f"Saving results to dataframe {fout}")
-    analysis.dataframe().to_excel(fout)
 
-    all_dataframes = analysis.trial_dataframes
-    print(f"all_dataframes (this is a dataframe for each trial, with rows for each training iteration)= \n{all_dataframes}")
-
-    print(f"analysis.trials = \n{analysis.trials}")
-
-    import joblib
-    joblib.dump(analysis, 'analysis.joblib')
+if __name__ == '__main__':
+    # FUTURE: Add ray cluster address to CLI
+    main(*parse_arguments())
