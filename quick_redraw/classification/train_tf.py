@@ -1,4 +1,5 @@
 import datetime
+import inspect
 import os
 import argparse
 from typing import Tuple
@@ -8,9 +9,6 @@ from mlflow.tracking import MlflowClient
 from ray import tune
 from ray.tune.logger import DEFAULT_LOGGERS, MLFLowLogger
 
-from tensorflow.keras import Model
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
-
 from quick_redraw.data.db_session import global_init
 from quick_redraw.services.image_storage_service import load_training_data_to_dataframe
 
@@ -19,47 +17,21 @@ from quick_redraw.services.image_storage_service import load_training_data_to_da
 # https://github.com/ray-project/ray/blob/master/python/ray/tune/examples/pbt_tune_cifar10_with_keras.py
 
 
-class SimpleConv(Model):
-    def __init__(self, n_output, conv_filters=28, conv_kernel_size=None, conv_stride=1, pool_size=None,
-                 dense_layer_size=128, dropout=0.0):
-        if not conv_kernel_size:
-            conv_kernel_size = (2, 2)
-
-        super().__init__()
-        self.layers_ = []
-        self.layers_.append(Conv2D(filters=conv_filters,
-                                   kernel_size=conv_kernel_size,
-                                   strides=conv_stride))
-        if pool_size:
-            self.layers_.append(MaxPooling2D(pool_size=pool_size))
-        self.layers_.append(Flatten())
-        self.layers_.append(Dense(dense_layer_size, activation="relu"))
-        self.layers_.append(Dropout(dropout))
-
-        # Output layer
-        self.layers_.append(Dense(n_output, activation='softmax'))
-
-    def call(self, x):
-        # TODO: super signature has training=None, mask=None.  Fix
-        for layer in self.layers_:
-            x = layer(x)
-        return x
-
-
 class MyTrainable(tune.Trainable):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     def _build_model(self, output_shape):
-        model = SimpleConv(n_output=output_shape,
-                           conv_filters=self.config['conv_filters'],
-                           conv_kernel_size=self.config['conv_kernel_size'],
-                           conv_stride=self.config['conv_stride'],
-                           pool_size=self.config['pool_size'],
-                           dense_layer_size=self.config['dense_layer_size'],
-                           dropout=self.config['dropout'],
-                           )
-        return model
+        # FUTURE: Need a better way to do this
+        # Inspect the model signature to identify which config parameters are for this model, then instantiate using
+        # them
+        # TODO: Change this so I'm passing the model class name to import, not the class itself in config
+        accepted_keys = set(inspect.getfullargspec(self.config['model_class']).args)
+        model_kwargs = {key: value for key, value in self.config.items()
+                        if key in accepted_keys}
+
+        self.model = self.config['model_class'](n_output=output_shape,
+                                                **model_kwargs)
 
     def _load_data(self, config):
         global_init(config['metadata_location'])
@@ -99,7 +71,7 @@ class MyTrainable(tune.Trainable):
 
         self._load_data(config)
 
-        self.model = self._build_model(len(self.index_to_label))
+        self._build_model(len(self.index_to_label))
 
         # Don't really need these in self, but kept from a previous version
         # Use categoricalCrossentropy because ImageDataGenerator passes labels as n-d arrays
@@ -143,7 +115,11 @@ def parse_arguments() -> Tuple[str, int, str, str, bool]:
     parser = argparse.ArgumentParser(description="Performs a hyperparameter search for a model on a specified set of"
                                                  "training data")
     parser.add_argument('model', type=str, action="store",
-                        help="Name of model to use during training")
+                        help="Name of model to use during training.  Model must be implemented in models dir with a "
+                             "filename that is the all-lowercase version of its modelname.  Eg: MyModel would be "
+                             "implemented in quick_redraw.models.mymodel.MyModel.  quick_redraw.models.mymodel must "
+                             "also provide quick_redraw.models.mymodel.SEARCH_PARAMS which defines the grid/random "
+                             "search parameters for this model")
     parser.add_argument('td_id', type=int, action="store",
                         help="ID number of the TrainingData entry that defines Train/Test data")
     parser.add_argument('db_location', type=str, action="store",
@@ -163,12 +139,12 @@ def parse_arguments() -> Tuple[str, int, str, str, bool]:
     return args.model, args.td_id, args.db_location, args.mlflow_uri, args.smoke_test
 
 
-def main(model: str, td_id: int, metadata_location: str, mlflow_uri: str, smoke_test: bool):
+def main(model_name: str, td_id: int, metadata_location: str, mlflow_uri: str, smoke_test: bool):
     """
     FUTURE: Docstring
 
     Args:
-        model:
+        model_name:
         td_id:
         metadata_location:
         mlflow_uri:
@@ -178,16 +154,16 @@ def main(model: str, td_id: int, metadata_location: str, mlflow_uri: str, smoke_
 
     """
     # # For debugging
-    # ray.init(local_mode=True, num_cpus=1)
+    ray.init(local_mode=True, num_cpus=1)
     # Limit us to N CPUs (threads) during testing
-    ray.init(num_cpus=4)
+    # ray.init(num_cpus=4)
 
     print("WARNING: model argument not fully implemented.")
 
     # Initialize the mlflow session and create an experiment
     client = MlflowClient(tracking_uri=mlflow_uri)
     now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    experiment_name = f"{now}_{model}_tdr.{td_id}"
+    experiment_name = f"{now}_{model_name}_tdr.{td_id}"
     mlflow_experiment_id = client.create_experiment(name=experiment_name)
 
     if smoke_test:
@@ -195,27 +171,24 @@ def main(model: str, td_id: int, metadata_location: str, mlflow_uri: str, smoke_
     else:
         training_iteration = 10
 
+    import importlib
+    model_package = importlib.import_module(f".{model_name.lower()}", "quick_redraw.models")
+
+    # Load hyperparameter configs from model, prepended with a parameter identifier
+
+    config = model_package.SEARCH_PARAMS
+
+    # Add other config data
+    config["mlflow_experiment_id"] = mlflow_experiment_id
+    config["training_data_id"] = td_id
+    config["metadata_location"] = metadata_location
+    config["model_class"] = getattr(model_package, model_name)
+
     analysis = tune.run(
         MyTrainable,
         stop={"training_iteration": training_iteration},
         verbose=1,
-        config={
-            "mlflow_experiment_id": mlflow_experiment_id,
-            "training_data_id": td_id,
-            "metadata_location": metadata_location,
-            # FUTURE: Inherrit the grid settings from the model definition?
-            'conv_filters': tune.grid_search([32]),
-            'conv_kernel_size': tune.grid_search([3]),
-            'conv_stride': tune.grid_search([1]),
-            'pool_size': tune.grid_search([2]),
-            'dense_layer_size': tune.grid_search([64, 128]),
-            'dropout': tune.grid_search([0.0, 0.2]),
-            'learning_rate': tune.grid_search([0.0001])
-            # 'epochs': tune.grid_search([1, 5, 10, 20])  # Training epochs.  Bother varying?  What would this affect?
-            # 'dense_layer_size': tune.grid_search([64, 128]),
-            # 'dropout': tune.grid_search([0.0, 0.2, 0.5]),
-            # 'learning_rate': tune.grid_search([0.0001, 0.001, 0.01])
-        },
+        config=config,
         # Are training results described here everything (full model checkpoint available?)  Guess I just need params
         # for a retrain on all data
         local_dir="./ray_results/",  # Where training results are stored locally
