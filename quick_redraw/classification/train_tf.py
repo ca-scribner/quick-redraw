@@ -1,6 +1,6 @@
 import datetime
 import inspect
-import os
+import importlib
 import argparse
 from typing import Tuple
 
@@ -22,16 +22,23 @@ class MyTrainable(tune.Trainable):
         super().__init__(*args, **kwargs)
 
     def _build_model(self, output_shape):
-        # FUTURE: Need a better way to do this
-        # Inspect the model signature to identify which config parameters are for this model, then instantiate using
-        # them
-        # TODO: Change this so I'm passing the model class name to import, not the class itself in config
-        accepted_keys = set(inspect.getfullargspec(self.config['model_class']).args)
+        # Import model class specified in config
+        # Is there a better way to do this?  Don't like hard-coding the package structure here
+        model_package = importlib.import_module(f".{self.config['model_name'].lower()}", "quick_redraw.models")
+        model_class = getattr(model_package, self.config['model_name'])
+
+        # Inspect the model signature to identify which config parameters are for this model (rather than training
+        # params, such as learning_rate) then instantiate using them
+        # FUTURE: Need a better way to do this.  Should I specify training defaults elsewhere?  But models might
+        # require different learning_rate, etc.  Could instead nest them in config['model_params'],
+        # config['search_params']
+        accepted_keys = set(inspect.getfullargspec(model_class).args)
         model_kwargs = {key: value for key, value in self.config.items()
                         if key in accepted_keys}
 
-        self.model = self.config['model_class'](n_output=output_shape,
-                                                **model_kwargs)
+        self.model = model_class(n_output=output_shape,
+                                 **model_kwargs,
+                                 )
 
     def _load_data(self, config):
         global_init(config['metadata_location'])
@@ -60,8 +67,6 @@ class MyTrainable(tune.Trainable):
         self.index_to_label = index_to_label
 
     def _setup(self, config):
-        # Note: config is also available from self.config
-
         # Fixes issue with interaction between Ray actors and TF as described here:
         # https://github.com/ray-project/ray/blob/master/python/ray/tune/examples/tf_mnist_example.py
         import tensorflow as tf
@@ -73,7 +78,7 @@ class MyTrainable(tune.Trainable):
 
         self._build_model(len(self.index_to_label))
 
-        # Don't really need these in self, but kept from a previous version
+        # Don't really need these in self, but kept from a previous version of code
         # Use categoricalCrossentropy because ImageDataGenerator passes labels as n-d arrays
         self.loss_object = tf.keras.losses.CategoricalCrossentropy()
         self.optimizer = tf.keras.optimizers.Adam(config['learning_rate'])
@@ -83,10 +88,6 @@ class MyTrainable(tune.Trainable):
             optimizer=self.optimizer,
             metrics=["accuracy"],
         )
-
-        # print("DOES THIS MODEL WORK?")
-        # self.model.build((None, 28, 28, 1))
-        # print(self.model.summary())
 
     def _train(self):
         train_history = self.model.fit(
@@ -104,6 +105,7 @@ class MyTrainable(tune.Trainable):
             # steps within this training epoch
             "loss": train_history.history['loss'],
             "accuracy": train_history.history['accuracy'],
+            # Metrics at end of training/testing
             "test_loss": float(test_loss),
             "mean_accuracy": float(test_accuracy),
         }
@@ -171,18 +173,17 @@ def main(model_name: str, td_id: int, metadata_location: str, mlflow_uri: str, s
     else:
         training_iteration = 10
 
-    import importlib
+    # Import the model package to load search hyperparamers defined by model
     model_package = importlib.import_module(f".{model_name.lower()}", "quick_redraw.models")
 
-    # Load hyperparameter configs from model, prepended with a parameter identifier
-
+    # Load hyperparameter configs from model
     config = model_package.SEARCH_PARAMS
+    config["model_name"] = model_name
 
     # Add other config data
     config["mlflow_experiment_id"] = mlflow_experiment_id
     config["training_data_id"] = td_id
     config["metadata_location"] = metadata_location
-    config["model_class"] = getattr(model_package, model_name)
 
     analysis = tune.run(
         MyTrainable,

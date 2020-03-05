@@ -3,6 +3,8 @@ from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropou
 
 from ray import tune
 
+# FUTURE: Defining these here implies this model will be used for one purpose.  If transferring model across
+#  applications, should move these to a separate metadata location?
 SEARCH_PARAMS = {
     'conv_filters': tune.grid_search([32]),
     'conv_kernel_size': tune.grid_search([3]),
@@ -19,6 +21,9 @@ SEARCH_PARAMS = {
 
 
 class SimpleConv(Model):
+    """
+    A simple, slightly adjustable convolutional neural network model for basic image classification
+    """
     def __init__(self, n_output, conv_filters=28, conv_kernel_size=None, conv_stride=1, pool_size=None,
                  dense_layer_size=128, dropout=0.0):
         if not conv_kernel_size:
