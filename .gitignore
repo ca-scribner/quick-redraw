@@ -219,3 +219,4 @@ ipython_config.py
 *.ndjson
 /mock_data/untracked/
 /todo.md
+/secrets/
