@@ -10,3 +10,8 @@ psutil
 openpyxl
 joblib
 pprint
+
+# For using ray.  Do I need this for the project or just interacting with it?
+google-api-python-client
+google-auth-oauthlib
+cryptography  # Used by "ray up", but not installed with ray?

@@ -113,7 +113,7 @@ class MyTrainable(tune.Trainable):
     # FUTURE: Implement _save and _restore to allow for checkpointing?
 
 
-def parse_arguments() -> Tuple[str, int, str, str, bool]:
+def parse_arguments() -> Tuple[str, int, str, str, bool, str]:
     parser = argparse.ArgumentParser(description="Performs a hyperparameter search for a model on a specified set of"
                                                  "training data")
     parser.add_argument('model', type=str, action="store",
@@ -130,6 +130,8 @@ def parse_arguments() -> Tuple[str, int, str, str, bool]:
                         help="Path to the mlflow tracking server (remote and local supported)")
     parser.add_argument('--smoke_test', action="store_true",
                         help="Limit to 3 epochs per training run for debugging")
+    parser.add_argument('--ray_address', type=str, action="store", default="auto",
+                        help="Ray cluster address.  Set to 'local' to run locally")
     args = parser.parse_args()
 
     # FUTURE: For now, assume db_location is local and make it absolute relative to here.  This is needed because all
@@ -138,10 +140,10 @@ def parse_arguments() -> Tuple[str, int, str, str, bool]:
     import os
     args.db_location = os.path.abspath(args.db_location)
 
-    return args.model, args.td_id, args.db_location, args.mlflow_uri, args.smoke_test
+    return args.model, args.td_id, args.db_location, args.mlflow_uri, args.smoke_test, args.ray_address
 
 
-def main(model_name: str, td_id: int, metadata_location: str, mlflow_uri: str, smoke_test: bool):
+def main(model_name: str, td_id: int, metadata_location: str, mlflow_uri: str, smoke_test: bool, ray_address: str):
     """
     FUTURE: Docstring
 
@@ -151,17 +153,21 @@ def main(model_name: str, td_id: int, metadata_location: str, mlflow_uri: str, s
         metadata_location:
         mlflow_uri:
         smoke_test:
+        ray_address:
 
     Returns:
 
     """
-    # # For debugging
-    ray.init(local_mode=True, num_cpus=1)
-    # Limit us to N CPUs (threads) during testing
-    # ray.init(num_cpus=4)
+    if ray_address == "local":
+        # Local debugging
+        ray_dict = ray.init(local_mode=True, num_cpus=1)
+        # Limit us to N CPUs (threads) during testing
+        # ray.init(num_cpus=4)
+    else:
+        ray_dict = ray.init(address=ray_address)
 
     print("WARNING: model argument not fully implemented.")
-
+    print(f"ray_dict = \n{ray_dict}")
     # Initialize the mlflow session and create an experiment
     client = MlflowClient(tracking_uri=mlflow_uri)
     now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
