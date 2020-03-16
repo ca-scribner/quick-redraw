@@ -1,0 +1,13 @@
+sqlalchemy
+opencv-python
+scikit-learn
+Pillow
+tensorflow
+numpy
+mlflow
+
+requests
+ray
+ray[tune]  # this may not work - says I'm missing requirement tabulate after pip install -r this_file. ???
+git+https://github.com/ray-project/tune-sklearn.git
+pandas
