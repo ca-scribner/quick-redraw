@@ -24,6 +24,7 @@ class MyTrainable(tune.Trainable):
     def _build_model(self, output_shape):
         # Import model class specified in config
         # Is there a better way to do this?  Don't like hard-coding the package structure here
+        # Ray/autoscaler/node_provider.py/load_class does something similar - look at it to check?
         model_package = importlib.import_module(f".{self.config['model_name'].lower()}", "quick_redraw.models")
         model_class = getattr(model_package, self.config['model_name'])
 
