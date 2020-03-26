@@ -209,5 +209,4 @@ def main(model_name: str, td_id: int, metadata_location: str, mlflow_uri: str, s
 
 
 if __name__ == '__main__':
-    # FUTURE: Add ray cluster address to CLI
     main(*parse_arguments())
